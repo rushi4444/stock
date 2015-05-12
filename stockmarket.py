@@ -5,13 +5,13 @@ import time
 import string
 from bs4 import BeautifulSoup
 
-latest_margin_file = '/home/rushiraj/workspace/stock-python/data/latest_margin.csv'
+latest_margin_file = '/home/rushiraj/workspace/stock/data/latest_margin.csv'
 z_margin_url = 'https://zerodha.com/margin-calculator/Equity/'
 
 
 def get_hist_data(exchange,script,date=''):
 	hist_url = 'https://www.google.com/finance/historical?q=' + exchange + ':' + urllib.quote(script)
-	hist_file_main = '/home/rushiraj/workspace/stock-python/data/main_HIST_'+script+'.csv'
+	hist_file_main = '/home/rushiraj/workspace/stock/data/main_HIST_'+script+'.csv'
 	hist_page = urllib2.urlopen(hist_url)
 	hist_pg = BeautifulSoup(hist_page.read())
 
@@ -45,8 +45,12 @@ def get_hist_data(exchange,script,date=''):
 
 def append_data_at_begining(exchange,script,todays_Data):
 
-	hist_file_main = '/home/rushiraj/workspace/stock-python/data/main_HIST_'+script+'.csv'
-	hist_file_temp = '/home/rushiraj/workspace/stock-python/data/main_HIST_'+script+'.csv_temp'
+	hist_file_main = '/home/rushiraj/workspace/stock/data/main_HIST_'+script+'.csv'
+	hist_file_temp = '/home/rushiraj/workspace/stock/data/main_HIST_'+script+'.csv_temp'
+
+	if todays_Data in open(hist_file_main).read():
+		print "Data for this date is already there."
+		return
 
 	temp_file=open(hist_file_temp,'w')
 	temp_file.write(todays_Data+"\n")
@@ -60,17 +64,22 @@ def append_data_at_begining(exchange,script,todays_Data):
 	os.remove(hist_file_main)
 	os.rename(hist_file_temp,hist_file_main)
 
-def append_todays_hist_data():
+def append_todays_hist_data(exchange,script):
+
+	hist_file_main = '/home/rushiraj/workspace/stock/data/main_HIST_'+script+'.csv'
 	todays_date = time.strftime("%b %d, %Y")
-	exchange = 'BOM'
-	script = '532134'
-	todays_Data = get_hist_data(exchange,script,todays_date)
-	append_data_at_begining(exchange,script,todays_Data)
+
+	if todays_date in open(hist_file_main).read():
+		print "Data for this date is already there."
+		return
+	else:
+		todays_Data = get_hist_data(exchange,script,todays_date)
+		append_data_at_begining(exchange,script,todays_Data)
 
 
 #def get_hist_data_bse(script):
 #	hist_url = 'http://www.bseindia.com/markets/equity/EQReports/StockPrcHistori.aspx?scripcode='+script+'&flag=sp&Submit=G'
-#	hist_file_main = '/home/rushiraj/workspace/stock-python/data/main_HIST_'+script+'.csv'
+#	hist_file_main = '/home/rushiraj/workspace/stock/data/main_HIST_'+script+'.csv'
 #	hist_page = urllib2.urlopen(hist_url)
 #	hist_pg = BeautifulSoup(hist_page.read())
 #
@@ -169,43 +178,61 @@ def apply_cam_formula(high_day,low_day,close_day):
 	L3 = close-(0.275*(high-low))
 	L4 = close-(0.55*(high-low))
 
-	print 'H4 = ',H4,'H3 = ',H3,'L3 = ',L3,'L4 = ',L4,'\n'
-	print "H3-L3 diff : ",H3-L3,"\n","H4-L4 diff : ",H4-L4,"\n"
+	H3L3_diff = H3-L3
+	H4L4_diff = H4-L4
 
-def apply_cammerila():
+	H3L3_percentage = H3L3_diff * 100 / close
+	H4L4_percentage = H4L4_diff * 100 / close
+
+	data = "%s,%s,%s,%s,%s,%s,%s,%s" % (H4, H3, L3, L4, H3L3_diff, H4L4_diff, H3L3_percentage, H4L4_percentage)
+	return data
+
+def apply_cammerila(exchange, script,date=''):
 	
-	margin_fp = open(latest_margin_file,'r')
+	hist_file_main = '/home/rushiraj/workspace/stock/data/main_HIST_'+script+'.csv'
+	cam_dir =  '/home/rushiraj/workspace/stock/data/'
 
-	for line in margin_fp:
-		data = line.split(',')
-		script = data[0].strip()
-		margin = data[1].strip()
-		hist_file_main = '/home/rushiraj/workspace/stock-python/data/main_HIST_'+script+'.csv'
-		if margin == '9x':
-			get_hist_data('NSE',script)
+	hist_fp = open(hist_file_main,'r')
+	if date == '':
+		first_line = hist_fp.readline();
+		data_line= first_line
+	else:
+		for line in hist_fp:
+			if date in line:
+				data_line = line
+	hist_fp.close()
 
-			hist_fp = open(hist_file_main,'r')
-			first_line = hist_fp.readline();
-			hist_fp.close()
+	if data_line != '':
+		data = data_line.split(',')
+		date = "%s_%s" % (data[0], data[1].strip())
+		cam_data = apply_cam_formula(data[3],data[4],data[5])
+		cam_file = "%scam_%s.csv" % (cam_dir,date.replace(' ','_'))
+		fd = open(cam_file,'a')
+		fd.write("%s,%s,%s\n" % (script, date, cam_data))
+		fd.close()
 
-			data = first_line.split(',')
-			print script + " : "
-			print "High : ",data[3],"Low : ",data[4]," Close : ",data[5]
-			apply_cam_formula(data[3],data[4],data[5])
 
 
-	margin_fp.close()
+
+###########################################################
+margin_fp = open(latest_margin_file,'r')
+
+exchange = 'NSE'
+
+for line in margin_fp:
+	data = line.split(',')
+	script = data[0].strip()
+	margin = data[1].strip()
+#	get_hist_data(exchange, script)
+#	append_todays_hist_data(exchange, script)
+	apply_cammerila(exchange, script,'May 11, 2015')
+
+margin_fp.close()
+##########################################################
 
 
 #latest_z_margin()							
 
-#get_hist_data('BOM','532134')
-#get_hist_data('NSE','BANKBARODA')
-
-#append_todays_hist_data()
-
-apply_cammerila()
-#get_hist_data_bse('532134')
 
 #url = create_g_url('BOM','523204')	   
 #url = create_g_url('NSE',urllib.quote('ALSTOMT&D'))
