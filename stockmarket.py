@@ -68,6 +68,7 @@ def append_todays_hist_data(exchange,script):
 
 	hist_file_main = '/home/rushiraj/workspace/stock/data/main_HIST_'+script+'.csv'
 	todays_date = time.strftime("%b %d, %Y")
+#	todays_date = 'May 13, 2015'
 
 	if todays_date in open(hist_file_main).read():
 		print "Data for this date is already there."
@@ -225,7 +226,7 @@ for line in margin_fp:
 	margin = data[1].strip()
 #	get_hist_data(exchange, script)
 #	append_todays_hist_data(exchange, script)
-	apply_cammerila(exchange, script,'May 11, 2015')
+	apply_cammerila(exchange, script,'May 13, 2015')
 
 margin_fp.close()
 ##########################################################
